@@ -19,37 +19,26 @@ public class App {
     throws StreamingQueryException, TimeoutException {
     SparkSession spark = SparkSession
       .builder()
-      .appName("JavaStructuredNetworkWordCount")
+      .appName("EMRServerlessSparkExample")
       .getOrCreate();
 
-    // Create DataFrame representing the stream of input lines from connection to localhost:9999
-    Dataset<Row> lines = spark
-      .readStream()
-      .format("socket")
-      .option("host", "localhost")
-      .option("port", 9999)
-      .load();
+    // Read data from an S3 bucket
+    spark
+      .read()
+      .format("csv")
+      .load("s3://test/input.csv")
+      .createOrReplaceTempView("my_data");
 
-    // Split the lines into words
-    Dataset<String> words = lines
-      .as(Encoders.STRING())
-      .flatMap(
-        (FlatMapFunction<String, String>) x ->
-          Arrays.asList(x.split(" ")).iterator(),
-        Encoders.STRING()
-      );
+    // Run a simple Spark SQL query
+    spark.sql("SELECT COUNT(*) FROM my_data").show();
 
-    // Generate running word count
-    Dataset<Row> wordCounts = words.groupBy("value").count();
+    // Write the output to an S3 bucket
+    spark
+      .sql("SELECT * FROM my_data")
+      .write()
+      .format("csv")
+      .save("s3://test/output.csv");
 
-    // Start running the query that prints the running counts to the console
-    StreamingQuery query = wordCounts
-      .writeStream()
-      .outputMode("complete")
-      .format("console")
-      .start();
-
-    query.awaitTermination();
-    // spark.stop();
+    spark.stop();
   }
 }

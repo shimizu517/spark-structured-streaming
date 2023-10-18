@@ -20,6 +20,7 @@ dc up -d
 # Prepare S3 bucket for EMR
 export S3_BUCKET=test
 aws s3 mb s3://$S3_BUCKET --endpoint-url=http://localhost:4566
+aws s3 cp --endpoint-url=http://localhost:4566 ./input.csv s3://test/
 aws s3 cp spark/project/kafka-spark-streaming/target/kafka-spark-streaming-1.0-SNAPSHOT.jar s3://${S3_BUCKET}/code/java-spark/ --endpoint-url=http://localhost:4566
 
 # Role for EMR
@@ -53,7 +54,8 @@ aws emr-serverless start-application \
     --endpoint-url=http://localhost:4566 \
     --application-id $APPLICATION_ID
 
-awslocal emr-serverless start-job-run \
+aws emr-serverless start-job-run \
+    --endpoint-url=http://localhost:4566 \
     --application-id $APPLICATION_ID \
     --execution-role-arn $JOB_ROLE_ARN \
     --job-driver '{
